@@ -1,13 +1,15 @@
 import requests
 from progress.bar import ChargingBar
+import json
 
 
 class VK:
 
-   def __init__(self, access_token, user_id, version='5.131'):
+   def __init__(self, access_token, user_id, count_photo, version='5.131'):
        self.token = access_token
        self.id = user_id
        self.version = version
+       self.count_photo = count_photo
        self.params = {'access_token': self.token, 'v': self.version}
 
    def users_info(self):
@@ -34,15 +36,28 @@ class VK:
                 'extended': '1'
                 }
        info_photo = requests.get(url, params={**self.params, **params})
-       url_photo = info_photo.json()['response']['items'][0]['sizes'][2]['url']
-       bar_profile_picture.next(25)
+       url_size_photos = {}
+       url_size_photos['url_size'] = []
        name_photo = info_photo.json()['response']['items'][0]['likes']['count']
+       url_size_photos['file_name'] = name_photo
+       info_photo = info_photo.json()['response']['items'][0]['sizes']
+       info_photo = sorted(info_photo, key=lambda x: (x['height'] and x['width']), reverse = True)
+       for url_type in info_photo:
+        if len(url_size_photos['url_size']) == self.count_photo:
+            bar_profile_picture.next(25)
+            break
+        else:
+            url_size_photos['url_size'].append({
+                'file_url': url_type['url'],
+                'size': url_type['type']
+            })
+        
        bar_profile_picture.next(25)
        bar_profile_picture.finish()
-       return [url_photo, str(name_photo)]
+       return url_size_photos
     
 class YA():
-    def __init__(self, token, url_photo, name_photo):
+    def __init__(self, token, url_photo, name_photo, size):
         self.url_photo = url_photo
         self.headers = {
             'Content-Type': 'application/json', 
@@ -51,6 +66,7 @@ class YA():
         self.params = {'path':'disk:/'}
         self.name_folder = 'Фото_профиля_ВК'
         self.name_photo = name_photo
+        self.size = size
 
     def create_folder(self):
         bar_create_folder = ChargingBar('Создание/Проверка папки для фото', max = 100)
@@ -79,20 +95,37 @@ class YA():
         bar_loading_profile_picture.next(25)
         succsesful = requests.post(url_loading, params={**params}, headers={**self.headers})
         bar_loading_profile_picture.next(25)
+        info_file = {'file_name':self.name_photo + '.jpg', 'size':self.size }
         bar_loading_profile_picture.finish()
-        info_file = [{'file_name':self.name_photo + '.jpg' }]
         return succsesful, info_file
-       
-access_token = 'vk1.a.QLcaZUwum5eLcpmS_5JYA8EtjcS4eYSAm1JwU2QkU052RCuZBYiUCNDW90TscffbWkLBJGisfkBmCBKlnKAkD3XTbOA7qjibCtRzNWtdHaChmLgeCZ34urTJ9vxvbr0YxJtvcl0jV9d_pByna4vAH4MhHLocFgqJOF-DftQwJHCc2g7-rmYbkm7lS_aRNFQkzS5HIfX2vNA0n7OUcHpzlg'
-user_id = '422264572'
-vk = VK(access_token, user_id)
-info_photo = vk.profile_picture()
-token_YA = 'y0_AgAAAAA8KgLcAADLWwAAAADa_KQ7iNJyZXM9TYq8pBI5cqN6ShBQyeU'
-load_photo = YA(token_YA, info_photo[0], info_photo[1])
-check  = load_photo.loading_profile_picture()
-if str(check[0]) == '<Response [202]>':
-    print(check[1])
-    print('Succsesful')
+
+
+with open(r'vk_token.txt') as vk_token:
+    vk_token = vk_token.read()
+with open (r'YA_token.txt') as YA_token:
+    YA_token = YA_token.read()
+with open (r'vk_id.txt') as vk_id:
+    vk_id = vk_id.read()
+#vk = input('Введите свой ID из вк' '\n')
+count_photo = input('Введите колличество загружаемых фото')
+if count_photo == '':
+    count_photo = 5
 else:
-    print('Mistake', str(check[0]))
+    count_photo = int(count_photo)
+vk = VK(vk_token, vk_id, count_photo)
+info_photo = vk.profile_picture()
+data_info = []
+for showdown in info_photo['url_size']:
+    url = showdown['file_url']
+    size = showdown['size']
+    name = info_photo['file_name']
+    load_photo = YA(YA_token, url, str(name), size)
+    check  = load_photo.loading_profile_picture()
+    if str(check[0]) == '<Response [202]>':
+        data_info.append(check[1])
+        print('Succsesful')
+    else:
+        print('Mistake', str(check[0]))
+with open(r'info_load_photo.json', 'w') as info:
+    json.dump(data_info, info)
 
