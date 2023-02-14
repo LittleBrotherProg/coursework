@@ -1,3 +1,4 @@
-requsts
+requests
 progress
-json
+google-api-python-client
+Google

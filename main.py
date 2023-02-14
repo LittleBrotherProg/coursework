@@ -1,6 +1,66 @@
 import requests
 from progress.bar import ChargingBar
 import json
+from googleapiclient.http import MediaFileUpload
+from Google import Create_Service
+import webbrowser
+
+class GD:
+    def __init__(
+                self,
+                photo_name,
+                client_secret_file = 'client_secrets.json', 
+                api_name = 'drive',
+                api_version = 'v3',
+                scopes = ['https://www.googleapis.com/auth/drive']
+                ):
+        self.photo_name = str(photo_name)
+        self.csf = client_secret_file
+        self.api_name = api_name
+        self.api_version = api_version
+        self.scopes = scopes
+    def create_folder(self):
+        service = Create_Service( 
+                                self.csf, 
+                                self.api_name, 
+                                self.api_version,   
+                                self.scopes
+                                )
+        file_metadata = {
+            'name': 'photo_vk',
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+
+        
+        file = service.files().create(body=file_metadata, fields='id'
+                                      ).execute()
+        return file.get('id')
+
+    def loading(self):
+        folder_id = gd.create_folder()
+        service = Create_Service( 
+                                self.csf, 
+                                self.api_name, 
+                                self.api_version,   
+                                self.scopes
+                                )
+        mime_types = 'image/png'
+        file_metadata = {
+            'name': self.photo_name,
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload('{0}'.format(
+                                            self.photo_name 
+                                            + '.png'), 
+                                mimetype=mime_types)
+
+        service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+
+
 
 
 class VK:
@@ -77,6 +137,9 @@ class VK:
                         reverse = True
                         )
        for url_type in info_photo:
+        api = requests.get(url_type['url'])
+        with open('%s' % name_photo + '.png', 'wb') as file:
+            file.write(api.content)
         if (len(url_size_photos['url_size']) == self.count_photo):
             bar_profile_picture.next(25)
             break
@@ -143,7 +206,7 @@ class YA():
 
     def loading_profile_picture(self):
         bar_loading_profile_picture = ChargingBar(
-            'Загрузка файла на диск', 
+            'Загрузка файла на диски', 
             max = 100
             )
         load_photo.create_folder()
@@ -173,24 +236,24 @@ class YA():
         return succsesful, info_file
 
 
-with open(r'vk_token.txt') as vk_token:
+with open('vk_token.txt') as vk_token:
     vk_token = vk_token.read()
-with open (r'YA_token.txt') as YA_token:
+with open ('YA_token.txt') as YA_token:
     YA_token = YA_token.read()
-with open (r'vk_id.txt') as vk_id:
-    vk_id = vk_id.read()
-#vk = input('Введите свой ID из вк' '\n')
-count_photo = input('Введите колличество загружаемых фото')
+vk_id = input('Введите свой ID из вк' '\n')
+count_photo = input('Введите колличество загружаемых фото' '\n')
 if (count_photo == ''):
     count_photo = 5
 else:
     count_photo = int(count_photo)
+
 vk = VK(
         vk_token, 
         vk_id, 
         count_photo
         )
 info_photo = vk.profile_picture()
+gd = GD(info_photo['file_name'])
 data_info = []
 for showdown in info_photo['url_size']:
     url = showdown['file_url']
@@ -202,13 +265,15 @@ for showdown in info_photo['url_size']:
                     str(name), 
                     size
                     )
+    loading_GD = gd.loading()
     check  = load_photo.loading_profile_picture()
-    requests.Response.status_code = None
-    if str(check[0]) == '<Response [202]>':
+    loading_status = check[0].status_code
+    if loading_status == 202:
         data_info.append(check[1])
         print('Succsesful')
     else:
         print('Mistake', str(check[0]))
-with open(r'info_load_photo.json', 'w') as info:
+with open('info_load_photo.json', 'w') as info:
     json.dump(data_info, info)
-
+webbrowser.open('https://disk.yandex.ru/', new=2)
+webbrowser.open('https://disk.yandex.ru/', new=2)
